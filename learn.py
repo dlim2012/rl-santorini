@@ -3,7 +3,7 @@ from sb3_contrib import TRPO
 import os
 from argparse import ArgumentParser
 
-from board_games.Santorini.agents import RandomAgent, RLAgent
+from board_games.Santorini.agents import RandomAgent, RLAgent, MiniMaxAgent
 from board_games.Santorini.board import GameBoard
 from board_games.CustomEnv import CustomEnv
 from utils.evaluate import evaluate_policy
@@ -15,6 +15,7 @@ def parse():
 
     parser.add_argument('--algorithm', type=str, default='PPO')
     parser.add_argument('--invalid_action_reward', type=int, default=-10)
+    parser.add_argument('--depth', type=int, default=1)
 
     parser.add_argument('--lr', type=float, default=3e-2)
     parser.add_argument('--n_steps', type=int, default=int(1e5))
@@ -37,10 +38,15 @@ def main(args):
     os.makedirs(save_path, exist_ok=True)
 
     agent = RLAgent(learning=True)
+    if args.depth == 0:
+        opponent = RandomAgent()
+    else:
+        opponent = MiniMaxAgent(maxDepth=args.depth)
+
     n_steps = args.n_steps
 
     game_board = GameBoard(
-        agents=[agent, RandomAgent()],
+        agents=[agent, opponent],
         learn_id=0,
         invalid_action_reward=args.invalid_action_reward
     )
@@ -54,25 +60,18 @@ def main(args):
             learning_rate=args.lr,
             #learning_starts=10000,
             n_steps=n_steps,
-            verbose=1)
-    elif args.algorithm in [DQN]:
-        model = args.algorithm(
-            'MlpPolicy',
-            env,
-            learning_rate=args.lr,
-            learning_starts=10000,
-            verbose=1)
-
+            verbose=1,
+        )
     for i in range(int(1e4)):
-        try:
-            model.learn(total_timesteps=n_steps)
-        except:
-            print(env.get_observation())
+        model.learn(total_timesteps=n_steps)
 
         print([(i+1) * n_steps], end=' ')
-        evaluate_policy(model, env, n_eval_episodes=100, print_result=True)
+        evaluate_policy(model, env, n_eval_episodes=100, print_result=True, count_invalid_actions=1000)
         if i > 0:
-            os.remove(save_name)
+            try:
+                os.remove(save_name)
+            except:
+                pass
         save_name = os.path.join(save_path, '%.3e' % ((i+1) * n_steps))
         model.save(save_name)
 
@@ -81,8 +80,10 @@ if __name__ == '__main__':
     #args = Namespace(**{'algorithm': 'PPO', 'lr': 0.03})
     #args = Namespace(**{'algorithm': 'A2C', 'lr': 0.03})
     args.algorithm, args.lr = TRPO, 0.001
-    args.save_name = 'TRPO_Random'
-    print(args.__dict__)
+    #args.save_name = 'TRPO_Random'
+    args.n_steps, args.n_iter = 10000, 1000
+    args.depth = 2
+    print(args)
 
     main(args)
     #masked()

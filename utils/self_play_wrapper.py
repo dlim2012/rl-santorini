@@ -48,7 +48,7 @@ def self_play_wrapper(cls):
             self.model_path = save_path
             self.agent, self.opponent = agent, opponent
             self.update_interval = update_interval
-            self.save_interval = save_interval
+            self.save_interval = save_interval if save_path else 0
 
         def reset(self):
             obs = super(SelfPlayWrapper, self).reset()

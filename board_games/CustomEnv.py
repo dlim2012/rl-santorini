@@ -29,13 +29,11 @@ class CustomEnv(gym.Env):
 
     def reset(self):
         self.game_board.reset()
-        #print('reset', self.get_observation())
         self.play = self.game_board.play()
         return self.get_observation()
 
     def step(self, action):
         self.game_board.learn_agent.next_action = action
-        #res = next(self.play); print(res); return res;
         return next(self.play)
 
     def render(self, mode='human'):
@@ -45,7 +43,6 @@ class CustomEnv(gym.Env):
         pass
 
     def get_valid_action_mask(self):
-        # just for masking
         return np.array(self.game_board.action_mask, dtype=np.uint8)
 
 

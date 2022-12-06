@@ -1,8 +1,4 @@
-
-from stable_baselines3.common.utils import obs_as_tensor
-import torch as th
-import numpy as np
-import random
+from utils.tools import predict_with_mask
 
 def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print_result=False, agents=None, learn_id=None, count_invalid_actions=0):
     """
@@ -18,9 +14,12 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
     """
     count_invalid_actions *= n_eval_episodes
 
-    invalid_action_reward = env.game_board.invalid_action_reward
-    prev_agents, prev_learn_id = [agent for agent in env.game_board.agents], env.game_board.learn_id
-    env.game_board.set_agents(agents, learn_id, 0)
+    prev_agents, prev_learn_id, self_play = [agent for agent in env.game_board.agents], env.game_board.learn_id, env.self_play
+    env.game_board.set_agents(agents, learn_id)
+    env.self_play = False
+
+
+    #print('(self-play: ' + str(env.game_board.agents[0].model == env.game_board.agents[1].model) + ')', end=' ')
 
     counts = {'win': 0, 'tie': 0, 'lose': 0}
     total_rewards, invalid_action_count = 0, 0
@@ -30,7 +29,12 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
         while not done:
             if invalid_action_count < count_invalid_actions:
                 action, _state = model.predict(obs)
-                invalid_action_count += 1
+                while env.game_board.action_mask[action] == 0:
+                    invalid_action_count += 1
+                    if invalid_action_count == count_invalid_actions:
+                        action = predict_with_mask(model, obs, env.game_board)
+                        break
+                    action, _state = model.predict(obs)
             else:
                 action = predict_with_mask(model, obs, env.game_board)
             obs, rewards, done, info = env.step(action)
@@ -43,8 +47,7 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
     if print_result:
         print(
             "win %d, tie %d, lose %d, rewards %.2f" % \
-            (counts['win'], counts['tie'], counts['lose'], avg_rewards),
-            {key: value for key, value in info.items()}
+            (counts['win'], counts['tie'], counts['lose'], avg_rewards)
         )
         if count_invalid_actions:
             if invalid_action_count == count_invalid_actions:
@@ -52,24 +55,9 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
             else:
                 print('Invalid actions = %.2f' % (invalid_action_count / n_eval_episodes))
 
-    env.game_board.rewards['invalid_action'] = invalid_action_reward
-    env.game_board.set_agents(prev_agents, prev_learn_id, invalid_action_reward)
+    env.game_board.set_agents(prev_agents, prev_learn_id)
+    env.self_play = self_play
 
     return avg_rewards, counts
 
-def predict_with_mask(model, obs, game_board, mode='PPO'):
-    obs = obs_as_tensor(np.array([obs], dtype=np.int64), model.policy.device)
-
-    if mode in ['PPO', 'A2C', 'TRPO']:
-        x = model.policy.get_distribution(obs).distribution.probs.detach().numpy()[0]
-    elif mode == 'DQN':
-        x = th.exp(model.policy.q_net(obs)[0])
-
-    choices, weights = [], []
-    for i in range(game_board.action_space_size):
-        if game_board.action_mask[i] != 0:
-            choices.append(i)
-            weights.append(x[i])
-    action = random.choices(choices, weights=weights)[0]
-    return action
 
