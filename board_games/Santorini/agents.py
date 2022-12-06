@@ -86,7 +86,6 @@ class MiniMaxAgent(AgentBase):
 
         # no possible moves for both workers
         if not self.game_board.set_available_moves(turn, buildings, occupied_locations, workers):
-            #print('no possible moves')
             new_survive, new_team_counts = survive[:], team_counts[:]
             new_survive[turn] = 0
             team_counts[self.game_board.player_to_team(turn)] -= 1
@@ -115,11 +114,8 @@ class MiniMaxAgent(AgentBase):
                 new_worker = Worker(worker.name, worker.x + self.game_board.dx[action1], worker.y + self.game_board.dy[action1])
                 new_occupied_locations[new_worker.x][new_worker.y] = 1
                 new_workers[worker_index] = new_worker
-                #print((new_worker.x, new_worker.y), end="")
 
                 if buildings[new_worker.x][new_worker.y] == 3:
-                    #print(['level3'])
-                    #self.render((turn, buildings, new_occupied_locations, new_workers, survive, team_counts))
                     winner_team = self.game_board.player_to_team(turn)
                     next_turn = self.get_next_turn(turn, survive)
                     next_state = (next_turn, buildings, new_occupied_locations, new_workers, survive, team_counts)
@@ -147,7 +143,6 @@ class MiniMaxAgent(AgentBase):
                         new_new_occupied_locations = new_occupied_locations
                     next_state = (next_turn, new_buildings, new_new_occupied_locations, new_workers, survive, team_counts)
                     cont_states.append((next_state, (worker_type, action1, action2)))
-                    #print((worker_type, action1, action2))
 
         if len(cont_states) != 0:
             return cont_states, 0
@@ -155,9 +150,6 @@ class MiniMaxAgent(AgentBase):
 
 
     def minimax(self, depth, state, maxTurn):
-        #if depth == 1:
-        #    print('[depth 1]', self.agent_id, maxTurn)
-        #    self.render(state)
 
         if depth > 0:
             # check end game
@@ -173,21 +165,16 @@ class MiniMaxAgent(AgentBase):
             return 0, None
 
         next_states, result = self.gather_next_states(state, maxTurn)
-        #print(len(next_states), result)
 
         if result == 1:
             return self.game_board.rewards['win'], random.choice(next_states)[1]
         elif result == -1:
-            #print('may lose')
             return self.game_board.rewards['lose'], random.choice(next_states)[1]
 
         if maxTurn:
             maxScore, bestActions = -float('inf'), None
             for next_state, next_actions in next_states:
                 score, actions = self.minimax(depth+1, next_state, False)
-                #if depth == 0:
-                #    print('[depth 0]', score, next_actions, actions, (maxScore, bestActions))
-                #    self.render(next_state)
                 if score > maxScore:
                     maxScore, bestActions = score, next_actions
             return maxScore, bestActions
@@ -197,7 +184,6 @@ class MiniMaxAgent(AgentBase):
                 score, actions = self.minimax(depth+1, next_state, True)
                 if score < minScore:
                     minScore, bestActions = score, next_actions
-            #print('min', minScore, bestActions)
             return minScore, bestActions
 
     def reset(self):
