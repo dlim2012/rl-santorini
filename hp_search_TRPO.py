@@ -3,7 +3,6 @@ from sb3_contrib import TRPO, ARS
 import os
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.monitor import Monitor
-from argparse import ArgumentParser
 from tensorboardX import SummaryWriter
 
 from board_games.Santorini.agents import RandomAgent, RLAgent, MiniMaxAgent
@@ -22,9 +21,9 @@ def learn(lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_
     if eval_period == 0:
         eval_period = 1
 
-    model_save_dir = 'hp_search/checkpoints/PPO'
-    fig_save_dir = 'hp_search/results/PPO'
-    log_dir = 'logs/PPO'
+    model_save_dir = 'hp_search/checkpoints/TRPO'
+    fig_save_dir = 'hp_search/results/TRPO'
+    log_dir = 'logs/TRPO'
     os.makedirs(model_save_dir, exist_ok=True)
     os.makedirs(fig_save_dir, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -64,7 +63,7 @@ def learn(lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_
     )
 
     env.enable_self_play(
-        algorithm=PPO,
+        algorithm=TRPO,
         save_path=None,
         agent=agent,
         opponent=opponent,
@@ -94,8 +93,7 @@ def learn(lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_
                 writer.add_scalar(name, average_rewards, n_steps * (i+1))
                 writer.add_scalar('invalid_action_count_%s' % name, counts['invalid_action_count'], n_steps * (i+1))
 
-
-    model.save(os.path.join(model_save_dir, save_name))
+            model.save(os.path.join(model_save_dir, save_name))
 
     for name, opponent, n_eval_episodes in opponents:
         average_rewards, counts = evaluate_policy(
@@ -114,8 +112,6 @@ def learn(lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_
 def main():
     print('main')
 
-    save_dir = 'hp_search/checkpoints/PPO'
-    os.makedirs(save_dir, exist_ok=True)
 
     lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_lambda = \
         0.03, -10, 10000, 0.1, 10, 0.95
@@ -124,7 +120,8 @@ def main():
     #learn(lr, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_lambda)
 
 
-    for lr_ in [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001]:
+    for lr_ in [0.1, 0.01, 0.001, 0.0001, 0.00001]:
+    #for lr_ in [0.3, 0.1, 0.03, 0.01, 0.003, 0.001, 0.0003, 0.0001]:
         pool.submit(learn, lr_, invalid_action_reward, n_steps, cg_damping, n_critic_updates, gae_lambda)
 
     return
