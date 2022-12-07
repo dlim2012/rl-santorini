@@ -1,9 +1,7 @@
 
 import random
-import numpy as np
 from utils.tools import predict_with_mask
 from collections import deque
-import gym
 from board_games.Santorini.board import Worker
 
 class AgentBase:
@@ -58,15 +56,17 @@ class MiniMaxAgent(AgentBase):
             else:
                 return self.next_actions.popleft()
         else:
-            turn = self.agent_id
-            buildings = [row[:] for row in self.game_board.buildings]
-            occupied_locations = [row[:] for row in self.game_board.occupied_locations]
-            workers = [Worker(worker.name, worker.x, worker.y) for worker in self.game_board.workers]
-            survive = self.game_board.survive[:]
-            team_counts = self.game_board.team_counts[:]
-            state = (turn, buildings, occupied_locations, workers, survive, team_counts)
+            # state: turn, buildings, occupied_locations, workers, survive, team_counts
+            state = (
+                self.agent_id,
+                [row[:] for row in self.game_board.buildings],
+                [row[:] for row in self.game_board.occupied_locations],
+                [Worker(worker.name, worker.x, worker.y) for worker in self.game_board.workers],
+                self.game_board.survive[:],
+                self.game_board.team_counts[:]
+            )
+
             maxScore, actions = self.minimax(0, state, True)
-            #print(maxScore, actions)
             self.next_actions.extend(actions[1:])
             return actions[0]
 
@@ -116,6 +116,7 @@ class MiniMaxAgent(AgentBase):
                 new_workers[worker_index] = new_worker
 
                 if buildings[new_worker.x][new_worker.y] == 3:
+
                     winner_team = self.game_board.player_to_team(turn)
                     next_turn = self.get_next_turn(turn, survive)
                     next_state = (next_turn, buildings, new_occupied_locations, new_workers, survive, team_counts)
@@ -185,6 +186,28 @@ class MiniMaxAgent(AgentBase):
                 if score < minScore:
                     minScore, bestActions = score, next_actions
             return minScore, bestActions
+
+
+    def render(self, state, print_line=True):
+        from collections import defaultdict
+        turn, buildings, occupied_locations, workers, survive, team_counts = state
+
+        locations = defaultdict(
+            lambda: '__',
+            {(worker.x, worker.y): worker.name for i, worker in enumerate(workers) if survive[i // 2]}
+        )
+        for x in range(5):
+            for y in range(5):
+                print(buildings[x][y], end='  ')
+            print(' | ', end='')
+            for y in range(5):
+                print(locations[(x, y)], end=' ')
+            print(' | ', end=' ')
+            for y in range(5):
+                print(occupied_locations[x][y], end='  ')
+            print()
+        if print_line:
+            print('-------------------------------------------------')
 
     def reset(self):
         self.next_actions = deque()

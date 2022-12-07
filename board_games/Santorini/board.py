@@ -103,6 +103,8 @@ class GameBoard:
             agent.reset()
         self.first_turn = random.randint(0, self.num_agents - 1)
 
+        #vself.agents)
+        #print([agent.model for agent in self.agents], self.agents[0].model == self.agents[1].model)
         if self.print_simulation:
             print('reset')
 
@@ -287,11 +289,13 @@ class GameBoard:
         survive_team_count = sum([1 if count > 0 else 0 for count in team_counts])
         if survive_team_count == 1:
             for i, count in enumerate(team_counts):
-                return self.player_to_team(i)
+                if count:
+                    return self.player_to_team(i)
         else:
             return -1
 
     def render(self, print_line=True):
+        print('render')
         locations = defaultdict(
             lambda: '__',
             {(worker.x, worker.y): worker.name for i, worker in enumerate(self.workers) if self.survive[i//2]}
