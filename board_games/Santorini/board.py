@@ -18,14 +18,12 @@ import random
 from itertools import chain
 
 from collections import defaultdict
+from board_games.board_base import GameBoardBase
 
-class GameBoard:
+class GameBoard(GameBoardBase):
     def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False):
 
-        self.num_agents = len(agents)
-        self.agents = None
-        self.learn_id, self.learn_agent = None, None
-        self.invalid_action_reward = invalid_action_reward
+        GameBoardBase.__init__(self, agents, learn_id, invalid_action_reward)
         self.print_simulation = print_simulation
 
         self.action_space_size = 8
