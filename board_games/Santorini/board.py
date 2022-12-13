@@ -19,7 +19,6 @@ from itertools import chain
 
 from collections import defaultdict
 
-
 class GameBoard:
     def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False):
 
@@ -103,8 +102,6 @@ class GameBoard:
             agent.reset()
         self.first_turn = random.randint(0, self.num_agents - 1)
 
-        #vself.agents)
-        #print([agent.model for agent in self.agents], self.agents[0].model == self.agents[1].model)
         if self.print_simulation:
             print('reset')
 
@@ -126,7 +123,6 @@ class GameBoard:
         if self.print_simulation:
             print('play', end=' '); self.render()
 
-
         # Initialize locations
         for i in range(self.num_agents):
             agent = self.agents[turn]
@@ -136,21 +132,17 @@ class GameBoard:
 
                 # gather x-coordinate
                 self.action_mask = self.init_valid_action_mask(0)
-                action_gen = self.get_action(turn, agent, self.action_mask)
-                action, ret = next(action_gen)
-                while action == -1:
-                    yield ret
-                    action, ret = next(action_gen)
+                for action, ret in self.get_action(turn, agent, self.action_mask):
+                    if action == -1:
+                        yield ret
                 worker.x = action
                 self.init_move += 1
 
                 # gather y-coordinate
                 self.action_mask = self.init_valid_action_mask(1, worker.x)
-                action_gen = self.get_action(turn, agent, self.action_mask)
-                action, ret = next(action_gen)
-                while action == -1:
-                    yield ret
-                    action, ret = next(action_gen)
+                for action, ret in self.get_action(turn, agent, self.action_mask):
+                    if action == -1:
+                        yield ret
                 worker.y = action
                 self.init_move += 1
 
@@ -193,21 +185,17 @@ class GameBoard:
             # choose worker
             self.next_move, self.worker_type = 0, 2
             self.action_mask = self.available_workers
-            action_gen = self.get_action(turn, agent, self.action_mask)
-            action, ret = next(action_gen)
-            while action == -1:
-                yield ret
-                action, ret = next(action_gen)
+            for action, ret in self.get_action(turn, agent, self.action_mask):
+                if action == -1:
+                    yield ret
             self.worker_type, worker = action, self.workers[2 * turn + action]
 
             # move the chosen worker
             self.next_move = 1
             self.action_mask = self.available_moves[self.worker_type]
-            action_gen = self.get_action(turn, agent, self.action_mask)
-            action, ret = next(action_gen)
-            while action == -1:
-                yield ret
-                action, ret = next(action_gen)
+            for action, ret in self.get_action(turn, agent, self.action_mask):
+                if action == -1:
+                    yield ret
             self.occupied_locations[worker.x][worker.y] = 0
             worker.x, worker.y = worker.x + self.dx[action], worker.y + self.dy[action]
             self.occupied_locations[worker.x][worker.y] = 1
@@ -219,11 +207,9 @@ class GameBoard:
             # build with the chosen worker
             self.next_move = 2
             self.action_mask = self.get_available_builds(worker.x, worker.y, self.occupied_locations)
-            action_gen = self.get_action(turn, agent, self.action_mask)
-            action, ret = next(action_gen)
-            while action == -1:
-                yield ret
-                action, ret = next(action_gen)
+            for action, ret in self.get_action(turn, agent, self.action_mask):
+                if action == -1:
+                    yield ret
             xx, yy = worker.x + self.dx[action], worker.y + self.dy[action]
             self.buildings[xx][yy] += 1
             if self.buildings[xx][yy] == 4:
