@@ -21,8 +21,6 @@ class CustomEnv(gym.Env):
             [self.game_board.observation_size] * self.game_board.observation_space_size
         )
         self.play = None
-        for agent in game_board.agents:
-            agent.action_space_type = spaces.Box
 
     def get_observation(self):
         return self.game_board.get_observation(self.game_board.learn_id)
