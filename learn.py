@@ -58,7 +58,6 @@ def main(args):
             'MlpPolicy',
             env,
             learning_rate=args.lr,
-            #learning_starts=10000,
             n_steps=n_steps,
             verbose=1,
         )
@@ -77,13 +76,4 @@ def main(args):
 
 if __name__ == '__main__':
     args = parse()
-    #args = Namespace(**{'algorithm': 'PPO', 'lr': 0.03})
-    #args = Namespace(**{'algorithm': 'A2C', 'lr': 0.03})
-    args.algorithm, args.lr = TRPO, 0.001
-    #args.save_name = 'TRPO_Random'
-    args.n_steps, args.n_iter = 10000, 1000
-    args.depth = 2
-    print(args)
-
     main(args)
-    #masked()

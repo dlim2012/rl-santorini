@@ -1,0 +1,7 @@
+*Python version: 3.8
+
+*Used packages
+torch 1.13.0
+sb3_contrib 1.6.2
+stable_baselines3 1.6.2
+tensorboardX 2.5.1

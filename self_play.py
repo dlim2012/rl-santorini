@@ -3,7 +3,9 @@ from stable_baselines3.common.env_checker import check_env
 from argparse import ArgumentParser
 from sb3_contrib import TRPO, ARS
 import os
-import time
+import time, math
+from matplotlib import pyplot as plt
+import numpy as np
 
 from board_games.Santorini.agents import RandomAgent, RLAgent, MiniMaxAgent
 from board_games.Santorini.board import GameBoard
@@ -20,22 +22,23 @@ def parse():
     parser.add_argument('--invalid_action_reward', type=int, default=-10)
 
     parser.add_argument('--n_steps', type=int, default=int(1e5))
-    parser.add_argument('--n_iter', type=int, default=int(1e2))
+    parser.add_argument('--n_iter', type=int, default=int(3e2))
     parser.add_argument('--n_eval_episodes', type=int, default=100)
 
     parser.add_argument('--update_interval', type=int, default=1)
 
     parser.add_argument('--print_simulation', action='store_true')
-    parser.add_argument('--save_dir', type=str, default='checkpoints')
+    parser.add_argument('--plt_save_dir', type=str, default='plt')
+    parser.add_argument('--ckpt_save_dir', type=str, default='checkpoints')
     parser.add_argument('--save_name', type=str, default='default_name',
                         help='Models will be saved and loaded using this name.')
     parser.add_argument('--verbose', type=int, default=1)
 
     args = parser.parse_args()
 
-    assert args.save_name + '.zip' not in os.listdir(args.save_dir)
+    assert args.save_name + '.zip' not in os.listdir(args.ckpt_save_dir)
 
-    algorithms = {'PPO': PPO, 'A2C': A2C, 'TRPO': TRPO}#, 'ARS': ARS, 'DQN': DQN}
+    algorithms = {'PPO': PPO, 'A2C': A2C, 'TRPO': TRPO}
     args.algorithm = algorithms[args.algorithm]
 
     return args
@@ -45,15 +48,25 @@ def main(args):
     start = time.time()
 
     print('main')
-    os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, args.save_name)
+    os.makedirs(args.ckpt_save_dir, exist_ok=True)
+    os.makedirs(args.plt_save_dir, exist_ok=True)
+    save_path = os.path.join(args.ckpt_save_dir, args.save_name)
 
     agent = RLAgent(learning=True)
     opponent = RLAgent(learning=False)
-    random_agent = RandomAgent()
-    minimax1_agent = MiniMaxAgent(maxDepth=1)
-    minimax2_agent = MiniMaxAgent(maxDepth=2)
-    minimax3_agent = MiniMaxAgent(maxDepth=3)
+
+    opponents = [
+        RandomAgent(),
+        MiniMaxAgent(maxDepth=1),
+        MiniMaxAgent(maxDepth=2),
+        MiniMaxAgent(maxDepth=3)
+    ]
+    n_eval_episodes_list = [
+        args.n_eval_episodes,
+        args.n_eval_episodes,
+        math.ceil(args.n_eval_episodes / 5),
+        math.ceil(args.n_eval_episodes / 25)
+    ]
 
     game_board = GameBoard(
         agents=[agent, opponent],
@@ -80,76 +93,37 @@ def main(args):
 
     check_env(env)
 
+    results = [[] for _ in range(4)]
     for i in range(args.n_iter):
-        #print(env.game_board.agents, env.game_board.agents[0].model == env.game_board.agents[1].model)
         model.learn(total_timesteps=args.n_steps)
         print('iteration %d (each iteration: %d steps)' % (i+1, args.n_steps))
 
-        evaluate_policy(
-            model,
-            env,
-            n_eval_episodes=args.n_eval_episodes,
-            print_result=args.print_simulation,
-            agents=[agent, opponent],
-            count_invalid_actions=int(1e3)
-        )
-        evaluate_policy(
-            model,
-            env,
-            n_eval_episodes=100,
-            print_result=args.print_simulation,
-            agents=[agent, minimax1_agent],
-            count_invalid_actions=int(1e3)
-        )
-        evaluate_policy(
-            model,
-            env,
-            n_eval_episodes=20,
-            print_result=args.print_simulation,
-            agents=[agent, minimax2_agent],
-            count_invalid_actions=int(1e3)
-        )
-        evaluate_policy(
-            model,
-            env,
-            n_eval_episodes=4,
-            print_result=args.print_simulation,
-            agents=[agent, minimax3_agent],
-            count_invalid_actions=int(1e3)
-        )
+        for i in range(4):
+            average_rewards, counts = evaluate_policy(
+                model,
+                env,
+                n_eval_episodes=n_eval_episodes_list[i],
+                print_result=args.print_simulation,
+                agents=[agent, opponents[i]],
+                count_invalid_actions=int(1e3)
+            )
 
-        """
-        # Versus self
-        print([(i + 1) * args.n_steps], '( vs. self )', end=' ')
-        evaluate_policy(
-            model,
-            env,
-            n_eval_episodes=args.n_eval_episodes,
-            print_result=args.print_simulation,
-            agents=None,
-            count_invalid_actions=int(1e3)
-        )
-        """
+            results[i].append(average_rewards)
+
 
         print('%d hr %d min %d sec' % time_hr_min_sec(time.time() - start))
         print()
 
+        model.save(save_path)
+
+    plt.figure(figsize=(8, 6))
+    for i in range(4):
+        plt.plot(np.arange(args.n_iter), results[i])
+    plt.savefig(os.path.join(args.plt_save_dir, args.save_name))
+    plt.clf()
+    plt.close()
+
 if __name__ == '__main__':
     args = parse()
 
-    args.algorithm, args.lr, args.save_name = TRPO, 0.001, 'TRPO_dummy'#'TRPO_lr1e-3'
-    #args.algorithm, args.lr, args.save_name = A2C, 0.03, 'A2C_dummy2'#'TRPO_lr1e-3'
-    #args.algorithm, args.lr, args.save_name = PPO, 0.03, 'PPO_dummy-'#'TRPO_lr1e-3'
-    #args.algorithm, args.lr, args.save_name = DQN, 0.01, 'DQN_lr1e-2'
-    args.print_simulation=True
-    args.n_steps = 100000
-
-    if args.save_name == 'default_name':
-        args.save_name = '%s_lr%.2e' % (args.algorithm, args.lr)
-    print(args.__dict__)
-
-
-    #assert args.save_name + '.zip' not in os.listdir(args.save_dir)
-
     main(args)
-    #masked()

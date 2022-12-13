@@ -18,9 +18,6 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
     env.game_board.set_agents(agents, learn_id)
     env.self_play = False
 
-
-    #print('(self-play: ' + str(env.game_board.agents[0].model == env.game_board.agents[1].model) + ')', end=' ')
-
     counts = {'win': 0, 'tie': 0, 'lose': 0}
     total_rewards, invalid_action_count = 0, 0
     for i in range(n_eval_episodes):
@@ -57,7 +54,7 @@ def evaluate_policy(model, env, discount_factor=1.0, n_eval_episodes=1000, print
 
     env.game_board.set_agents(prev_agents, prev_learn_id)
     env.self_play = self_play
-
+    counts['invalid_action_count'] = invalid_action_count / n_eval_episodes
     return avg_rewards, counts
 
 
