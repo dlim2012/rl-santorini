@@ -1,7 +1,13 @@
 *Python version: 3.8
 
 *Used packages
-torch 1.13.0
-sb3_contrib 1.6.2
-stable_baselines3 1.6.2
-tensorboardX 2.5.1
+sb3_contrib~=1.6.2
+stable_baselines3~=1.6.2
+numpy~=1.23.5
+gym~=0.21.0
+matplotlib~=3.6.2
+torch~=1.13.0
+tensorboardX~=2.5.1
+pandas~=1.5.2
+seaborn~=0.12.1
+tensorflow~=2.11.0

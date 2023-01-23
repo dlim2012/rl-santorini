@@ -1,16 +1,17 @@
+import random
 
 def self_play_wrapper(cls):
 
     class SelfPlayWrapper(cls):
         """
-        Only the second player changes
+        Supports two agent games only (learn_id=0, opponent id=1)
         """
         def __init__(self, *args):
             self.self_play = False
             self.algorithm = None
 
             self.agent = None
-            self.opponent = None
+            self.opponents, self.weights = None, None
 
             self.model_path = None
             self.update_interval = 1
@@ -26,33 +27,44 @@ def self_play_wrapper(cls):
             self.save_count += 1
             self.run_count += 1
 
+            if self.self_play:
+                opponent = random.choices(self.opponents, weights=self.weights)[0]
+                self.game_board.set_agents([self.agent, opponent])
+
             # Change the opponent to current model
             if self.self_play and self.update_interval != 1:
                 self.update_count += 1
                 if self.update_count == self.update_interval:
                     self.agent.model.save(self.model_path)
-                    self.opponent.model = self.algorithm.load(self.model_path)
+                    model = self.algorithm.load(self.model_path)
+                    for opponent in self.opponents:
+                        if hasattr(opponent, "model"):
+                            opponent.model = model
 
                     self.update_count = 0
                     return
 
+            # Save the model periodically
             if self.save_interval and self.save_count >= self.save_interval:
                 self.agent.model.save(self.model_path)
                 self.save_count = 0
 
-        def enable_self_play(self, algorithm, save_path, agent, opponent, model, update_interval, save_interval=100):
-            self.model = agent.model = opponent.model = model
+        def enable_self_play(self, algorithm, model, save_path, agent, opponents, weights=None, update_interval=1):
+            agent.model = model
+            for opponent in opponents:
+                if hasattr(opponent, "model"):
+                    opponent.model = model
 
             self.self_play = True
             self.algorithm = algorithm
             self.model_path = save_path
-            self.agent, self.opponent = agent, opponent
+            self.agent = agent
+            self.opponents, self.weights = opponents, weights
             self.update_interval = update_interval
-            self.save_interval = save_interval if save_path else 0
 
         def reset(self):
-            obs = super(SelfPlayWrapper, self).reset()
             self.self_play_update()
+            obs = super(SelfPlayWrapper, self).reset()
             return obs
 
     return SelfPlayWrapper

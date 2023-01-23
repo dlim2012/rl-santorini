@@ -2,8 +2,6 @@
 import gym
 from gym import spaces
 import numpy as np
-import random
-from itertools import chain
 
 from utils.self_play_wrapper import self_play_wrapper
 
@@ -35,7 +33,7 @@ class CustomEnv(gym.Env):
         return next(self.play)
 
     def render(self, mode='human'):
-        self.game_board.render(self.player_id)
+        self.game_board.render()
 
     def close(self):
         pass

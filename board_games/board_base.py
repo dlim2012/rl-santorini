@@ -1,9 +1,4 @@
 
-import numpy as np
-import random
-from itertools import chain
-
-from collections import defaultdict
 
 class GameBoardBase:
     def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10):
@@ -15,7 +10,6 @@ class GameBoardBase:
         self.action_space_size = None
         self.observation_size = None
         self.observation_space_size = None
-
 
     def set_agents(self, agents=None, learn_id=None, invalid_action_reward=None):
         raise NotImplementedError()

@@ -16,19 +16,25 @@ state:
 import numpy as np
 import random
 from itertools import chain
-
 from collections import defaultdict
+
 from board_games.board_base import GameBoardBase
 
+
 class GameBoard(GameBoardBase):
-    def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False):
+    def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False, mode=''):
 
         GameBoardBase.__init__(self, agents, learn_id, invalid_action_reward)
+
         self.print_simulation = print_simulation
+        self.init_rand = 'init-rand' in mode
+        self.print_occupied_spaces = True
 
         self.action_space_size = 8
         self.observation_size = 5
         self.observation_space_size = 27 + 5 * self.num_agents
+        if self.init_rand:
+            self.observation_space_size -= 1
 
         # observation variables
         self.buildings = None
@@ -36,10 +42,7 @@ class GameBoard(GameBoardBase):
         self.next_move = None
         self.worker_type = None
         self.init_move = None
-        self.survive = None # 1: True, 0: False
-
-        self.available_workers = [0] * self.action_space_size
-        self.available_moves = [[0] * self.action_space_size for _ in range(2)]
+        self.survive = None
 
         self.team_counts = None
         self.player_to_team = None
@@ -53,7 +56,7 @@ class GameBoard(GameBoardBase):
         self.occupied_locations = None
 
         self.n_turn, self.info = None, None
-        self.first_turn = None
+        self.turn = None
 
         self.set_agents(agents=agents, learn_id=learn_id, invalid_action_reward=invalid_action_reward)
 
@@ -70,7 +73,8 @@ class GameBoard(GameBoardBase):
         if self.num_agents in [2, 3]:
             self.team_counts = [1] * self.num_agents
             self.player_to_team = lambda x: x
-            self.rewards = {'win': 100, 'lose': -100 / (self.num_agents - 1), 'invalid_action': self.invalid_action_reward}
+            self.rewards = {'win': 100, 'lose': -100 / (self.num_agents - 1),
+                            'invalid_action': self.invalid_action_reward}
         elif self.num_agents == 4:
             self.team_counts = [2] * 2
             self.player_to_team = lambda x: x % 2
@@ -98,7 +102,7 @@ class GameBoard(GameBoardBase):
 
         for agent in self.agents:
             agent.reset()
-        self.first_turn = random.randint(0, self.num_agents - 1)
+        self.turn = random.randint(0, self.num_agents - 1)
 
         if self.print_simulation:
             print('reset')
@@ -117,43 +121,48 @@ class GameBoard(GameBoardBase):
             yield agent.get_action(action_mask, obs), None
 
     def play(self):
-        turn = self.first_turn
         if self.print_simulation:
             print('play', end=' '); self.render()
 
         # Initialize locations
         for i in range(self.num_agents):
-            agent = self.agents[turn]
+            agent = self.agents[self.turn]
             for i in range(2):
                 self.worker_type = i
-                worker = self.workers[turn * 2 + i]
+                worker = self.workers[self.turn * 2 + i]
 
                 # gather x-coordinate
                 self.action_mask = self.init_valid_action_mask(0)
-                for action, ret in self.get_action(turn, agent, self.action_mask):
-                    if action == -1:
-                        yield ret
+                if self.init_rand:
+                    action = random.choice([i for i in range(5) if self.action_mask[i]])
+                else:
+                    for action, ret in self.get_action(self.turn, agent, self.action_mask):
+                        if action == -1:
+                            yield ret
                 worker.x = action
                 self.init_move += 1
 
                 # gather y-coordinate
                 self.action_mask = self.init_valid_action_mask(1, worker.x)
-                for action, ret in self.get_action(turn, agent, self.action_mask):
-                    if action == -1:
-                        yield ret
+                if self.init_rand:
+                    action = random.choice([i for i in range(5) if self.action_mask[i]])
+                else:
+                    for action, ret in self.get_action(self.turn, agent, self.action_mask):
+                        if action == -1:
+                            yield ret
                 worker.y = action
                 self.init_move += 1
 
                 worker.survive = True
                 self.occupied_locations[worker.x][worker.y] = 1
-            self.survive[turn] = 1
-            self.team_counts[self.player_to_team(turn)] += 1
+            self.survive[self.turn] = 1
+            self.team_counts[self.player_to_team(self.turn)] += 1
             if self.print_simulation:
-                print('init', end=' '); self.render()
+                self.render()
 
             self.init_move = 0
             self.n_turn[0] += 1
-            turn = turn + 1 if turn != self.num_agents - 1 else 0
+            self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
         else:
             self.init_move = 4
             self.next_move = 0
@@ -161,37 +170,40 @@ class GameBoard(GameBoardBase):
         # choose, move, and build
         while True:
 
-            if self.survive[turn] == 0:
+            if self.survive[self.turn] == 0:
                 continue
 
-            if not self.set_available_moves(turn, self.buildings, self.occupied_locations, self.workers):
-                self.team_counts[self.player_to_team(turn)] -= 1
-                for worker_index in range(2*turn, 2*turn+2):
+            available_workers, available_moves = self.get_available_moves(
+                self.turn, self.buildings, self.occupied_locations, self.workers
+            )
+            if available_workers[0] == 0 and available_workers[1] == 0:
+                self.team_counts[self.player_to_team(self.turn)] -= 1
+                for worker_index in range(2*self.turn, 2*self.turn+2):
                     worker = self.workers[worker_index]
                     worker.survive = False
                     self.occupied_locations[worker.x][worker.y] = 0
-                self.survive[turn] = 0
-                self.info[self.n_turn[0]].append('player %d can\'t move' % turn)
+                self.survive[self.turn] = 0
+                self.info[self.n_turn[0]].append('player %d can\'t move' % self.turn)
 
                 # Check if the game ended
                 winner_team = self.check_survive_teams(self.team_counts)
                 if winner_team != -1:
                     break
 
-            agent = self.agents[turn]
+            agent = self.agents[self.turn]
 
             # choose worker
             self.next_move, self.worker_type = 0, 2
-            self.action_mask = self.available_workers
-            for action, ret in self.get_action(turn, agent, self.action_mask):
+            self.action_mask = available_workers
+            for action, ret in self.get_action(self.turn, agent, self.action_mask):
                 if action == -1:
                     yield ret
-            self.worker_type, worker = action, self.workers[2 * turn + action]
+            self.worker_type, worker = action, self.workers[2 * self.turn + action]
 
             # move the chosen worker
             self.next_move = 1
-            self.action_mask = self.available_moves[self.worker_type]
-            for action, ret in self.get_action(turn, agent, self.action_mask):
+            self.action_mask = available_moves[self.worker_type]
+            for action, ret in self.get_action(self.turn, agent, self.action_mask):
                 if action == -1:
                     yield ret
             self.occupied_locations[worker.x][worker.y] = 0
@@ -199,13 +211,13 @@ class GameBoard(GameBoardBase):
             self.occupied_locations[worker.x][worker.y] = 1
             if self.buildings[worker.x][worker.y] == 3:
                 self.info[self.n_turn[0]].append('%s went to level 3' % worker.name)
-                winner_team = self.player_to_team(turn)
+                winner_team = self.player_to_team(self.turn)
                 break
 
             # build with the chosen worker
             self.next_move = 2
             self.action_mask = self.get_available_builds(worker.x, worker.y, self.occupied_locations)
-            for action, ret in self.get_action(turn, agent, self.action_mask):
+            for action, ret in self.get_action(self.turn, agent, self.action_mask):
                 if action == -1:
                     yield ret
             xx, yy = worker.x + self.dx[action], worker.y + self.dy[action]
@@ -214,13 +226,14 @@ class GameBoard(GameBoardBase):
                 self.occupied_locations[xx][yy] = 1
 
             if self.print_simulation:
-                print('move', end=' '); self.render()
+                self.render()
 
             self.n_turn[0] += 1
-            turn = turn + 1 if turn != self.num_agents - 1 else 0
+            self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
 
         if self.print_simulation:
             self.render()
+
         if self.learn_id >= 0:
             result = 'win' if self.player_to_team(self.learn_id) == winner_team else 'lose'
             self.info['result'] = result
@@ -229,21 +242,20 @@ class GameBoard(GameBoardBase):
             yield winner_team
 
     def init_valid_action_mask(self, axis, x=None):
-        if axis == 0: # x-axis
+        if axis == 0:  # x-axis
             res = [1] * 5 + [0] * 3
             for x in range(5):
                 if sum(self.occupied_locations[x]) == 5:
                     res[x] = 0
             return np.array(res)
-        else: # y-axis
+        else:  # y-axis
             res = self.occupied_locations[x] + [1] * 3
             return 1 - np.array(res)
 
-    def set_available_moves(self, turn, buildings, occupied_locations, workers):
-        available = False
-        self.available_workers[0] = self.available_workers[1] = 0
+    def get_available_moves(self, turn, buildings, occupied_locations, workers):
+        available_workers = [0] * self.action_space_size
+        available_moves = [[0] * self.action_space_size for _ in range(2)]
         for worker_type in range(2):
-            self.available_moves[worker_type] = [0] * self.action_space_size
             worker = workers[2 * turn + worker_type]
             for d in range(8):
                 xx, yy = worker.x + self.dx[d], worker.y + self.dy[d]
@@ -253,10 +265,9 @@ class GameBoard(GameBoardBase):
                     continue
                 if buildings[xx][yy] > buildings[worker.x][worker.y] + 1:
                     continue
-                available = True
-                self.available_workers[worker_type] = 1
-                self.available_moves[worker_type][d] = 1
-        return available
+                available_workers[worker_type] = 1
+                available_moves[worker_type][d] = 1
+        return available_workers, available_moves
 
     def get_available_builds(self, x, y, occupied_locations):
         res = [0] * self.action_space_size
@@ -279,22 +290,22 @@ class GameBoard(GameBoardBase):
             return -1
 
     def render(self, print_line=True):
-        print('render')
         locations = defaultdict(
             lambda: '__',
             {(worker.x, worker.y): worker.name for i, worker in enumerate(self.workers) if self.survive[i//2]}
         )
-        #print({key: value for key, value in locations.items()})
-        print({key: value for key, value in self.info.items()})
+        if self.print_occupied_spaces:
+            print({key: value for key, value in self.info.items()})
         for x in range(5):
             for y in range(5):
                 print(self.buildings[x][y], end='  ')
             print(' | ', end='')
             for y in range(5):
                 print(locations[(x, y)], end=' ')
-            print(' | ', end=' ')
-            for y in range(5):
-                print(self.occupied_locations[x][y], end='  ')
+            if self.print_occupied_spaces:
+                print(' | ', end=' ')
+                for y in range(5):
+                    print(self.occupied_locations[x][y], end='  ')
             print()
         if print_line:
             print('-------------------------------------------------')
@@ -307,11 +318,13 @@ class GameBoard(GameBoardBase):
         observation = \
             list(chain(*self.buildings)) + \
             list(chain(*[(worker.x, worker.y) for worker in workers])) + \
+            survive + \
             [self.next_move] + \
-            [self.worker_type] + \
-            [self.init_move] + \
-            survive
+            [self.worker_type]
+        if not self.init_rand:
+            observation += [self.init_move]
         return np.array(observation, dtype=np.uint8)
+
 
 class Worker:
     def __init__(self, name=None, x=0, y=0, survive=False):
