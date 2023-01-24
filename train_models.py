@@ -20,7 +20,7 @@ def parse():
                         help='Santorini: init-rand(random initialization for worker)')
     parser.add_argument('--algorithm', '-a', type=str, default='TRPO',
                         help='Choose an algorithm: PPO, TRPO, A2C')
-    parser.add_argument('--mode', '-m', type=str, default='mixed',
+    parser.add_argument('--mode', '-m', type=str, default='learn',
                         help="""
                         Choose a mode for train:\n
                         \tlearn (train versus a minimax agent with max depth 2),\n
@@ -35,7 +35,7 @@ def parse():
                         help='Rewards for invalid actions')
     parser.add_argument('--n_steps', '-s', type=int, default=int(1e5),
                         help='hyperparameter n_steps for algorithms (PPO, A2C, TRPO)')
-    parser.add_argument('--n_iter', '-t', type=int, default=int(2e2),
+    parser.add_argument('--n_iter', '-it', type=int, default=int(1e4),
                         help='Number of iterations of training (total steps: n_iter * n_steps)')
     parser.add_argument('--update_interval', '-u', type=int, default=1,
                         help='update interval for self-play')
