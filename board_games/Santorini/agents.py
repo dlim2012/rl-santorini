@@ -12,6 +12,7 @@ class AgentBase:
         self.game_board = None
         self.agent_id = None
         self.model = None
+        self.require_obs = False
 
     def get_action(self, action_mask, obs=None):
         raise NotImplementedError()
@@ -34,6 +35,7 @@ class HumanAgent(AgentBase):
 
     def __init__(self):
         super(HumanAgent, self).__init__()
+        print('Directions: clockwise (upper right(0), right(1), ..., up(7))')
 
     def get_action(self, action_mask, obs=None):
         text = '[Turn %d] ' % self.game_board.turn
@@ -66,6 +68,7 @@ class RLAgent(AgentBase):
         self.model = None
         self.next_action = None
         self.learning = learning
+        self.require_obs = True
 
     def get_action(self, action_mask, obs=None):
         if self.learning:
@@ -121,6 +124,7 @@ class MiniMaxAgent(AgentBase):
         available_workers, available_moves = self.game_board.get_available_moves(
             turn, buildings, occupied_locations, workers
         )
+
         # no possible moves for both workers
         if available_workers[0] == 0 and available_workers[1] == 0:
             new_survive, new_team_counts = survive[:], team_counts[:]

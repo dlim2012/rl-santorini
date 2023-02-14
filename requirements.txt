@@ -1,6 +1,4 @@
-*Python version: 3.8
-
-*Used packages
+# Python 3.8
 sb3_contrib~=1.6.2
 stable_baselines3~=1.6.2
 numpy~=1.23.5

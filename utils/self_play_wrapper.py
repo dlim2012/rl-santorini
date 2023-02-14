@@ -10,7 +10,10 @@ def self_play_wrapper(cls):
             self.self_play = False
             self.algorithm = None
 
-            self.agent = None
+            # all agents
+            self.agents = None
+
+            # opponent to be changed
             self.opponents, self.weights = None, None
 
             self.model_path = None
@@ -21,6 +24,7 @@ def self_play_wrapper(cls):
             self.save_count = 0
             self.run_count = 0
 
+
             super(SelfPlayWrapper, self).__init__(*args)
 
         def self_play_update(self):
@@ -29,7 +33,8 @@ def self_play_wrapper(cls):
 
             if self.self_play:
                 opponent = random.choices(self.opponents, weights=self.weights)[0]
-                self.game_board.set_agents([self.agent, opponent])
+                self.agents[1] = opponent
+                self.game_board.set_agents(self.agents)
 
             # Change the opponent to current model
             if self.self_play and self.update_interval != 1:
@@ -49,8 +54,8 @@ def self_play_wrapper(cls):
                 self.agent.model.save(self.model_path)
                 self.save_count = 0
 
-        def enable_self_play(self, algorithm, model, save_path, agent, opponents, weights=None, update_interval=1):
-            agent.model = model
+        def enable_self_play(self, algorithm, model, save_path, agents, opponents, weights=None, update_interval=1, ):
+            agents[0].model = model
             for opponent in opponents:
                 if hasattr(opponent, "model"):
                     opponent.model = model
@@ -58,9 +63,10 @@ def self_play_wrapper(cls):
             self.self_play = True
             self.algorithm = algorithm
             self.model_path = save_path
-            self.agent = agent
+            self.agents = agents
             self.opponents, self.weights = opponents, weights
             self.update_interval = update_interval
+            agents = [agents, opponents[0]] if not agents else agents
 
         def reset(self):
             self.self_play_update()

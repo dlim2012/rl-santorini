@@ -20,7 +20,6 @@ from collections import defaultdict
 
 from board_games.board_base import GameBoardBase
 
-
 class GameBoard(GameBoardBase):
     def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False, mode=''):
 
@@ -108,8 +107,8 @@ class GameBoard(GameBoardBase):
             print('reset')
 
     def get_action(self, turn, agent, action_mask):
-        obs = self.get_observation(turn)
         if turn == self.learn_id:
+            obs = self.get_observation(turn)
             yield -1, (obs, 0, False, self.info)
             action = agent.get_action(action_mask, obs)
             while action_mask[action] == 0:
@@ -118,11 +117,17 @@ class GameBoard(GameBoardBase):
                 action = agent.get_action(action_mask, obs)
             yield action, None
         else:
+            obs = self.get_observation(turn) if agent.require_obs else None
             yield agent.get_action(action_mask, obs), None
+
+    def next_turn(self):
+        self.n_turn[0] += 1
+        self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
 
     def play(self):
         if self.print_simulation:
-            print('play', end=' '); self.render()
+            print('play')
+            self.render()
 
         # Initialize locations
         for i in range(self.num_agents):
@@ -171,11 +176,13 @@ class GameBoard(GameBoardBase):
         while True:
 
             if self.survive[self.turn] == 0:
+                self.next_turn()
                 continue
 
             available_workers, available_moves = self.get_available_moves(
                 self.turn, self.buildings, self.occupied_locations, self.workers
             )
+
             if available_workers[0] == 0 and available_workers[1] == 0:
                 self.team_counts[self.player_to_team(self.turn)] -= 1
                 for worker_index in range(2*self.turn, 2*self.turn+2):
@@ -189,6 +196,9 @@ class GameBoard(GameBoardBase):
                 winner_team = self.check_survive_teams(self.team_counts)
                 if winner_team != -1:
                     break
+
+                self.next_turn()
+                continue
 
             agent = self.agents[self.turn]
 
@@ -228,18 +238,18 @@ class GameBoard(GameBoardBase):
             if self.print_simulation:
                 self.render()
 
-            self.n_turn[0] += 1
-            self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
+            self.next_turn()
 
         if self.print_simulation:
             self.render()
 
+        self.info['winner_team'] = winner_team
         if self.learn_id >= 0:
             result = 'win' if self.player_to_team(self.learn_id) == winner_team else 'lose'
             self.info['result'] = result
             yield self.get_observation(self.learn_id), self.rewards[result], True, self.info
         else:
-            yield winner_team
+            yield winner_team, None, True, self.info
 
     def init_valid_action_mask(self, axis, x=None):
         if axis == 0:  # x-axis
@@ -335,7 +345,8 @@ class Worker:
 
 
 if __name__ == '__main__':
-    from board_games.Santorini.agents import RandomAgent
+    from board_games.Santorini.agents import RandomAgent, RLAgent
+
     board = GameBoard([RandomAgent(), RandomAgent()], print_simulation=True)
     board.reset()
     play = board.play()
