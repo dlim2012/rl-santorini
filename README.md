@@ -1,50 +1,61 @@
-# Board game santorini using Reinforcement algorithms
+# Board game santorini using reinforcement algorithms
 
 ## Install with python 3.8
 
-```commandline
+```bash
 pip install -r requirements.txt
 ```
 
 ## Play
 ### Play with a random agent:
 
-```commandline
+```bash
 python play.py -p2 random
 ```
 
 
-### Play with a minimax agent with various depth:
+### Play with a minimax agent:
 
-```commandline
+```bash
 python play.py -p2 minimax1 # depth 1
 python play.py -p2 minimax2 # depth 2
 python play.py -p2 minimax3 # depth 3
 ```
 
 ### Play with a trained model: 
-```commandline
+```bash
 python play.py -p2 rl -pt2 zoo/ckpt/TRPO_mixed/lr1.00e-02_run0 -bm init-random
 ```
 
 ### Play with another person:
-```commandline
+```bash
 python play.py -p2 human
 ```
 
 ### Watch agents playing:
-```commandline
-# 1 vs 1
-python play.py -p1 rl -p2 minimax3
-# 1 vs 1 vs 1
+```bash
+# 2 players mode: 1 vs 1
+python play.py -p1 rl -p2 minimax3 -pt1 zoo/ckpt/TRPO_mixed/lr1.00e-02_run0 -bm init-random
+# 3 players mode: 1 vs 1 vs 1
 python play.py -p1 minimax3 -p2 minimax3 -p3 minimax3
-# 2 vs 2
+# 4 players mode: 2 vs 2
 python play.py -p1 minimax3 -p2 minimax3 -p3 minimax3 -p4 minimax3
 ```
 
 
 ## References
 
+### Santorini
 https://boardgamegeek.com/boardgame/194655/santorini
 
+http://files.roxley.com/Santorini-Rulebook-Web-2016.08.14.pdf
+
+https://boardgamearena.com/gamepanel?game=santorini
+
+### Reinforcement Learning
+
 https://en.wikipedia.org/wiki/Self-play_(reinforcement_learning_technique)
+
+https://stable-baselines3.readthedocs.io/en/master/
+
+https://sb3-contrib.readthedocs.io/en/master/
