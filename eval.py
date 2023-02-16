@@ -12,7 +12,7 @@ def parse():
     parser.add_argument('--algorithm', '-a', type=str, default='TRPO')
     parser.add_argument('--opponent', '-o', type=str, default='human')
     parser.add_argument('--depth', '-d', type=int, default=3)
-    parser.add_argument('--ckpt_path', '-ckpt', default='zoo/ckpt/TRPO_mixed/1')
+    parser.add_argument('--ckpt_path', '-ckpt', default='zoo/ckpt/TRPO_mixed_2p/1')
     parser.add_argument('--board_mode', '-bm', default='init-rand',
                         help="board mode: \'\' or \'init-rand\' (random worker initialization)")
 

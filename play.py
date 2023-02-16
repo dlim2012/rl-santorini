@@ -1,5 +1,5 @@
 from board_games.Santorini.board import GameBoard
-from utils.utils import get_agent
+from board_games.Santorini.agents import get_agent
 from argparse import ArgumentParser
 
 
@@ -23,48 +23,53 @@ def parse():
                         help="Algorithm used to train the model for player3")
     parser.add_argument('--player4_algorithm', '-a4', default='TRPO',
                         help="Algorithm used to train the model for player4")
-    parser.add_argument('--player1_ckpt_path', '-pt1', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
-                        help="Checkpoint path when agent1 is \'rl\'")
-    parser.add_argument('--player2_ckpt_path', '-pt2', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
-                        help="Checkpoint path when agent2 is \'rl\'")
-    parser.add_argument('--player3_ckpt_path', '-pt3', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
-                        help="Checkpoint path when agent3 is \'rl\'")
-    parser.add_argument('--player4_ckpt_path', '-pt4', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
-                        help="Checkpoint path when agent4 is \'rl\'")
+    parser.add_argument('--player1_ckpt_path', '-pt1', default='',
+                        help="Checkpoint path when player1 is \'rl\'")
+    parser.add_argument('--player2_ckpt_path', '-pt2', default='',
+                        help="Checkpoint path when player2 is \'rl\'")
+    parser.add_argument('--player3_ckpt_path', '-pt3', default='',
+                        help="Checkpoint path when player3 is \'rl\'")
+    parser.add_argument('--player4_ckpt_path', '-pt4', default='',
+                        help="Checkpoint path when player4 is \'rl\'")
     parser.add_argument('--board_mode', '-bm', default='init-rand',
                         help="board mode: \'\' or \'init-rand\' (random worker initialization)")
 
     args = parser.parse_args()
+
+    args.players = [
+        (args.player1, args.player1_algorithm, args.player1_ckpt_path),
+        (args.player2, args.player2_algorithm, args.player2_ckpt_path),
+        (args.player3, args.player3_algorithm, args.player3_ckpt_path),
+        (args.player4, args.player4_algorithm, args.player4_ckpt_path),
+    ]
+
+
     return args
 
 
 def main():
     args = parse()
 
-    player1 = get_agent(args.player1, args.player1_algorithm, args.player1_ckpt_path)
-    player2 = get_agent(args.player2, args.player2_algorithm, args.player2_ckpt_path)
-    player3 = get_agent(args.player3, args.player3_algorithm, args.player3_ckpt_path)
-    player4 = get_agent(args.player4, args.player4_algorithm, args.player4_ckpt_path)
+    agents = [player for player in
+        [get_agent(args.players[i][0], args.players[i][1], args.players[i][2]) for i in range(4)]
+              if player != 'none'
+    ]
 
-    agents = [player for player in [player1, player2, player3, player4] if player != 'none']
+    for agent in agents:
+        if agent.agent_type == "rl" and agent.model == None:
+            if len(agents) == 2 and args.board_mode == 'init-rand':
+                agent.set_model('TRPO', 'zoo/ckpt/TRPO_mixed_2p/lr1.00e-02_run0')
+            else:
+                raise ValueError("No model provided for RL agent")
 
-    game_board = GameBoard(
+    GameBoard(
         agents=agents,
-        print_simulation=True,
-        mode=args.board_mode
+        print_simulation=2,
+        mode=args.board_mode,
+        use_gui=True,
+        delay=0.0
     )
-    game_board.print_occupied_spaces = False
 
-    game_board.reset()
-    play = game_board.play()
-    for obs, reward, done, info in play:
-        continue
-    print("Total steps", info['n_turn'][0])
-    for n_turn, event_list in info.items():
-        if type(n_turn) == int:
-            for event in event_list:
-                print("turn %d: %s" % (n_turn, event))
-    print("Winner team:", info['winner_team'])
 
 if __name__ == '__main__':
     main()

@@ -13,15 +13,20 @@ state:
     survive(n-1): survive list starting from the next turn
 """
 
+
 import numpy as np
 import random
 from itertools import chain
 from collections import defaultdict
+import tkinter as tk
+from tkmacosx import Button
+import time
 
 from board_games.board_base import GameBoardBase
 
 class GameBoard(GameBoardBase):
-    def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=False, mode=''):
+    def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=0, mode='',
+                 use_gui=False, delay=0.2):
 
         GameBoardBase.__init__(self, agents, learn_id, invalid_action_reward)
 
@@ -59,6 +64,26 @@ class GameBoard(GameBoardBase):
 
         self.set_agents(agents=agents, learn_id=learn_id, invalid_action_reward=invalid_action_reward)
 
+        # variables for gui
+        self.gui = use_gui
+        self.delay = delay
+        self.time = None
+        self.game = None
+        self.gui_next_action = -1
+        self.window = None
+        self.buttons = None
+        self.label = None
+        self.di = defaultdict(lambda: -1, {(self.dx[d], self.dy[d]): d for d in range(8)})
+        self.fg_colors = {"default": "black", "chosen": "white"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "burlywood1", 2: "burlywood2", 3: "burlywood4", 4: "blue"}
+        self.bg_colors = {0: 'DarkOliveGreen1', 1: "wheat1", 2: "wheat3", 3: "wheat4", 4: "wheat4"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "DodgerBlue1", 2: "DodgerBlue2", 3: "DodgerBlue3", 4: "DodgerBlue4"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "RoyalBlue1", 2: "RoyalBlue2", 3: "RoyalBlue3", 4: "RoyalBlue4"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "AntiqueWhite1", 2: "AntiqueWhite2", 3: "AntiqueWhite3", 4: "AntiqueWhite4"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "AntiqueWhite1", 2: "AntiqueWhite2", 3: "AntiqueWhite3", 4: "AntiqueWhite4"}
+        if self.gui:
+            self.init_gui()
+
     def set_agents(self, agents=None, learn_id=None, invalid_action_reward=None):
         if agents != None:
             self.agents = agents
@@ -84,7 +109,7 @@ class GameBoard(GameBoardBase):
     def reset(self):
         # observations
         self.buildings = [[0 for y in range(5)] for x in range(5)]
-        self.workers = [Worker('%d%s' % (i, s)) for i in range(self.num_agents) for s in ['m', 'f']]
+        self.workers = [Worker('%d%s' % (i, s), player_name="P" + str(i+1)) for i in range(self.num_agents) for s in ['m', 'f']]
         self.next_move = 4
         self.worker_type = 2
         self.init_move = 0
@@ -103,6 +128,7 @@ class GameBoard(GameBoardBase):
             agent.reset()
         self.turn = random.randint(0, self.num_agents - 1)
 
+        self.time = time.time()
         if self.print_simulation:
             print('reset')
 
@@ -110,19 +136,38 @@ class GameBoard(GameBoardBase):
         if turn == self.learn_id:
             obs = self.get_observation(turn)
             yield -1, (obs, 0, False, self.info)
-            action = agent.get_action(action_mask, obs)
+            action = agent.get_action()
             while action_mask[action] == 0:
                 self.info['invalid_action_count'] += 1
                 yield -1, (obs, self.rewards['invalid_action'], False, self.info)
-                action = agent.get_action(action_mask, obs)
+                action = agent.get_action()
             yield action, None
+        elif agent.agent_type== "human":
+            if self.init_move < 4:
+                if self.init_move % 2 == 0:
+                    yield -1, None
+                    yield self.agents[self.turn].next_actions[0], None
+                else:
+                    yield self.agents[self.turn].next_actions[1], None
+            else:
+                yield -1, None
+                while self.gui_next_action == -1 or action_mask[self.gui_next_action] == 0:
+                    yield -1, None
+                yield self.gui_next_action, None
         else:
+            if self.gui and self.init_move % 2 != 1:
+                now = time.time()
+                wait = self.time + self.delay - now
+                if wait > 0:
+                    time.sleep(wait)
+                self.time = now
             obs = self.get_observation(turn) if agent.require_obs else None
             yield agent.get_action(action_mask, obs), None
 
     def next_turn(self):
         self.n_turn[0] += 1
         self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
+        self.next_move = 0
 
     def play(self):
         if self.print_simulation:
@@ -160,17 +205,23 @@ class GameBoard(GameBoardBase):
 
                 worker.survive = True
                 self.occupied_locations[worker.x][worker.y] = 1
+
+                if self.print_simulation >= 1 and i == 0:
+                    self.render()
+
             self.survive[self.turn] = 1
             self.team_counts[self.player_to_team(self.turn)] += 1
-            if self.print_simulation:
-                self.render()
 
             self.init_move = 0
             self.n_turn[0] += 1
             self.turn = self.turn + 1 if self.turn != self.num_agents - 1 else 0
+
+            if self.print_simulation >= 1:
+                self.render()
         else:
             self.init_move = 4
             self.next_move = 0
+            self.worker_type = 2
 
         # choose, move, and build
         while True:
@@ -210,8 +261,12 @@ class GameBoard(GameBoardBase):
                     yield ret
             self.worker_type, worker = action, self.workers[2 * self.turn + action]
 
-            # move the chosen worker
+            # next move
             self.next_move = 1
+            if self.print_simulation >= 2:
+                self.render()
+
+            # move the chosen worker
             self.action_mask = available_moves[self.worker_type]
             for action, ret in self.get_action(self.turn, agent, self.action_mask):
                 if action == -1:
@@ -224,8 +279,12 @@ class GameBoard(GameBoardBase):
                 winner_team = self.player_to_team(self.turn)
                 break
 
-            # build with the chosen worker
+            # next move
             self.next_move = 2
+            if self.print_simulation >= 2:
+                self.render()
+
+            # build with the chosen worker
             self.action_mask = self.get_available_builds(worker.x, worker.y, self.occupied_locations)
             for action, ret in self.get_action(self.turn, agent, self.action_mask):
                 if action == -1:
@@ -235,15 +294,15 @@ class GameBoard(GameBoardBase):
             if self.buildings[xx][yy] == 4:
                 self.occupied_locations[xx][yy] = 1
 
+            self.next_turn()
+
             if self.print_simulation:
                 self.render()
 
-            self.next_turn()
-
-        if self.print_simulation:
-            self.render()
 
         self.info['winner_team'] = winner_team
+        if self.print_simulation:
+            self.render()
         if self.learn_id >= 0:
             result = 'win' if self.player_to_team(self.learn_id) == winner_team else 'lose'
             self.info['result'] = result
@@ -301,24 +360,52 @@ class GameBoard(GameBoardBase):
 
     def render(self, print_line=True):
         locations = defaultdict(
-            lambda: '__',
-            {(worker.x, worker.y): worker.name for i, worker in enumerate(self.workers) if self.survive[i//2]}
+            lambda: ('__', '', 'black'),
+            {(worker.x, worker.y):
+                 (
+                     worker.name,
+                     worker.player_name,
+                     self.fg_colors["chosen"] if (
+                             self.next_move != 0 and
+                            self.worker_type < 2 and
+                             i == self.turn * 2 + self.worker_type
+                             and self.next_move != 4
+                     )
+                     else self.fg_colors["default"]
+                 )
+             for i, worker in enumerate(self.workers)
+                if (worker.survive)}
         )
-        if self.print_occupied_spaces:
-            print({key: value for key, value in self.info.items()})
-        for x in range(5):
-            for y in range(5):
-                print(self.buildings[x][y], end='  ')
-            print(' | ', end='')
-            for y in range(5):
-                print(locations[(x, y)], end=' ')
-            if self.print_occupied_spaces:
-                print(' | ', end=' ')
+
+        if self.gui:
+            self.label["text"] = "team %d won" % (self.info['winner_team'] + 1)\
+                if 'winner_team' in self.info \
+                else "turn: %d" % (self.turn + 1)
+            for x in range(5):
                 for y in range(5):
-                    print(self.occupied_locations[x][y], end='  ')
-            print()
-        if print_line:
-            print('-------------------------------------------------')
+                    if self.buildings[x][y] == 4:
+                        self.buttons[x][y]["text"], fg = "x", self.fg_colors["default"]
+                    else:
+                        _, self.buttons[x][y]["text"], fg = locations[(x, y)]
+                    self.buttons[x][y].config(bg=self.bg_colors[self.buildings[x][y]], fg=fg)
+            self.window.update_idletasks()
+            self.window.update()
+        else:
+            if self.print_occupied_spaces:
+                print({key: value for key, value in self.info.items()})
+            for x in range(5):
+                for y in range(5):
+                    print(self.buildings[x][y], end='  ')
+                print(' | ', end='')
+                for y in range(5):
+                    print(locations[(x, y)][0], end=' ')
+                if self.print_occupied_spaces:
+                    print(' | ', end=' ')
+                    for y in range(5):
+                        print(self.occupied_locations[x][y], end='  ')
+                print()
+            if print_line:
+                print('-------------------------------------------------')
 
     def get_observation(self, player_id):
         # roll out workers and survive index as if the current player is player 0
@@ -335,13 +422,63 @@ class GameBoard(GameBoardBase):
             observation += [self.init_move]
         return np.array(observation, dtype=np.uint8)
 
+    def init_gui(self):
+
+        for agent in self.agents:
+            agent.use_gui = True
+
+        self.window = tk.Tk()
+        self.window.title("Santorini")
+
+        reset_button = Button(text="restart", font=('consolas', 20), command=self.new_game)
+        reset_button.pack(side="top")
+
+        frame = tk.Frame(self.window)
+        frame.pack()
+
+        self.turn = 0
+        self.label = tk.Label(text = "turn: %d" % self.turn, font=('consolas', 40))
+        self.label.pack(side="top")
+
+        self.buttons = [[0 for y in range(5)] for x in range(5)]
+        for row in range(5):
+            for column in range(5):
+                self.buttons[row][column] = Button(frame, text="", font=('consolas', 40), width=100, height=100,
+                                              command=lambda row=row, column=column: self.cont(row, column),
+                                                   bg=self.bg_colors[0], fg=self.fg_colors["default"])
+                self.buttons[row][column].grid(row=row, column=column)
+
+        self.new_game()
+        self.window.mainloop()
+
+    def new_game(self):
+        self.reset()
+        self.game = self.play()
+        next(self.game)
+
+    def cont(self, row, column):
+        if self.init_move < 4:
+            self.agents[self.turn].next_actions = [row, column]
+        else:
+            if self.next_move == 0:
+                for i, worker in enumerate(self.workers[2 * self.turn:2 * (self.turn + 1)]):
+                    if row == worker.x and column == worker.y:
+                        self.gui_next_action = i
+                        break
+                else:
+                    self.gui_next_action = -1
+            else:
+                worker = self.workers[2 * self.turn + self.worker_type]
+                self.gui_next_action = self.di[(row - worker.x, column - worker.y)]
+        next(self.game)
 
 class Worker:
-    def __init__(self, name=None, x=0, y=0, survive=False):
+    def __init__(self, name=None, x=0, y=0, survive=False, player_name=""):
         self.name = name
         self.x = x
         self.y = y
         self.survive = survive
+        self.player_name = player_name
 
 
 if __name__ == '__main__':

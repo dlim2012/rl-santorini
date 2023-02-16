@@ -53,9 +53,9 @@ def parse():
                         help="Algorithm used to train the model for player3: \'TRPO\', \'PPO\', \'A2C\'")
     parser.add_argument('--player4_algorithm', '-a4', default='TRPO',
                         help="Algorithm used to train the model for player4")
-    parser.add_argument('--player3_ckpt_path', '-pt3', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
+    parser.add_argument('--player3_ckpt_path', '-pt3', default='zoo/ckpt/TRPO_mixed_2p/lr1.00e-02_run0',
                         help="Checkpoint path when agent3 is \'rl\'")
-    parser.add_argument('--player4_ckpt_path', '-pt4', default='zoo/ckpt/TRPO_mixed/lr1.00e-02_run0',
+    parser.add_argument('--player4_ckpt_path', '-pt4', default='zoo/ckpt/TRPO_mixed_2p/lr1.00e-02_run0',
                         help="Checkpoint path when agent4 is \'rl\'")
 
     parser.add_argument('--test_run', '-t', action='store_true',

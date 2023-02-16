@@ -1,20 +1,28 @@
 
+
 import random
 from utils.tools import predict_with_mask
 from collections import deque
 
-from board_games.Santorini.board import Worker
+from stable_baselines3 import A2C, PPO
+from sb3_contrib import TRPO
 
+
+from .board import Worker
 
 class AgentBase:
 
-    def __init__(self):
+    def __init__(self, agent_type):
+        self.agent_type = agent_type
+
         self.game_board = None
         self.agent_id = None
+
         self.model = None
         self.require_obs = False
+        self.use_gui = False
 
-    def get_action(self, action_mask, obs=None):
+    def get_action(self, action_mask=None, obs=None):
         raise NotImplementedError()
 
     def reset(self):
@@ -24,9 +32,9 @@ class AgentBase:
 class RandomAgent(AgentBase):
 
     def __init__(self):
-        super(RandomAgent, self).__init__()
+        super(RandomAgent, self).__init__("random")
 
-    def get_action(self, action_mask, obs=None):
+    def get_action(self, action_mask=None, obs=None):
         choices = [i for i in range(self.game_board.action_space_size) if int(action_mask[i]) == 1]
         return random.choice(choices)
 
@@ -34,10 +42,12 @@ class RandomAgent(AgentBase):
 class HumanAgent(AgentBase):
 
     def __init__(self):
-        super(HumanAgent, self).__init__()
-        print('Directions: clockwise (upper right(0), right(1), ..., up(7))')
+        super(HumanAgent, self).__init__("human")
+        self.next_actions = [-1, -1]
 
-    def get_action(self, action_mask, obs=None):
+    def get_action(self, action_mask=None, obs=None):
+        """ Command line user interface """
+        #print('Directions: clockwise (upper right(0), right(1), ..., up(7))')
         text = '[Turn %d] ' % self.game_board.turn
         if self.game_board.init_move < 4:
             axis = 'x-axis' if self.game_board.init_move & 1 == 0 else 'y-axis'
@@ -64,27 +74,29 @@ class HumanAgent(AgentBase):
 
 class RLAgent(AgentBase):
     def __init__(self, learning=False):
-        super(RLAgent, self).__init__()
+        super(RLAgent, self).__init__("rl")
         self.model = None
         self.next_action = None
         self.learning = learning
         self.require_obs = True
 
-    def get_action(self, action_mask, obs=None):
+    def get_action(self, action_mask=None, obs=None):
         if self.learning:
             action = self.next_action
         else:
             action = predict_with_mask(self.model, obs, self.game_board)
         return action
 
+    def set_model(self, algorithm, ckpt_path):
+        self.model = algorithms[algorithm].load(ckpt_path)
 
 class MiniMaxAgent(AgentBase):
     def __init__(self, max_depth):
-        super(MiniMaxAgent, self).__init__()
+        super(MiniMaxAgent, self).__init__("minimax")
         self.next_actions = deque()
         self.maxDepth = max_depth
 
-    def get_action(self, action_mask, obs=None):
+    def get_action(self, action_mask=None, obs=None):
         if self.game_board.next_move != 0:
             if self.game_board.init_move < 4:
                 choices = [i for i in range(self.game_board.action_space_size) if int(action_mask[i]) == 1]
@@ -259,3 +271,27 @@ class MiniMaxAgent(AgentBase):
 
     def reset(self):
         self.next_actions = deque()
+
+algorithms = {
+    'TRPO': TRPO,
+    'PPO': PPO,
+    'A2C': A2C
+}
+
+def get_agent(agent_type, algorithm=None, ckpt_path=None):
+    if agent_type == 'random':
+        agent = RandomAgent()
+    elif agent_type[:7] == 'minimax':
+        assert len(agent_type) == 8 and agent_type[7].isdecimal()
+        agent = MiniMaxAgent(max_depth=int(agent_type[7]))
+    elif agent_type == 'rl':
+        agent = RLAgent()
+        if ckpt_path:
+            agent.model = algorithms[algorithm].load(ckpt_path)
+    elif agent_type == 'human':
+        agent = HumanAgent()
+    elif agent_type == 'none':
+        agent = 'none'
+    else:
+        raise ValueError('%s is not available for opponent.' % agent_type)
+    return agent

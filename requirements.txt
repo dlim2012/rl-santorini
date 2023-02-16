@@ -9,3 +9,4 @@ tensorboardX~=2.5.1
 pandas~=1.5.2
 seaborn~=0.12.1
 tensorflow~=2.11.0
+tkmacos~=1.0.5
