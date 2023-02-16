@@ -3,7 +3,7 @@ This project applies Reinforcement algorithms to the board game Santorini withou
 The training uses PPO, A2C, and TRPO algorithms with optional minimax or random agents.
 Graphical User Interface is provided.
 
-## Install with python 3.8
+## Install with python 3.10
 
 ```bash
 pip install -r requirements.txt
