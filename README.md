@@ -1,4 +1,4 @@
-# Board game Santorini with reinforcement learning algorithms
+# Board game Santorini with reinforcement learning
 This project applies Reinforcement algorithms to the board game Santorini without Godly powers.
 The training uses PPO, A2C, and TRPO algorithms with the self-play technique and optional random or minimax agents.
 Graphical User Interface and multi-player mode are available.
