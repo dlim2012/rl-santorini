@@ -67,7 +67,7 @@ def main():
         print_simulation=2,
         mode=args.board_mode,
         use_gui=True,
-        delay=0.0
+        delay=0.2
     )
 
 

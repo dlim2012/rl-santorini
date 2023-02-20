@@ -26,7 +26,7 @@ from board_games.board_base import GameBoardBase
 
 class GameBoard(GameBoardBase):
     def __init__(self, agents=None, learn_id=-1, invalid_action_reward=-10, print_simulation=0, mode='',
-                 use_gui=False, delay=0.2):
+                 use_gui=False, delay=0.0):
 
         GameBoardBase.__init__(self, agents, learn_id, invalid_action_reward)
 
@@ -75,12 +75,17 @@ class GameBoard(GameBoardBase):
         self.label = None
         self.di = defaultdict(lambda: -1, {(self.dx[d], self.dy[d]): d for d in range(8)})
         self.fg_colors = {"default": "black", "chosen": "white"}
-        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "burlywood1", 2: "burlywood2", 3: "burlywood4", 4: "blue"}
+
+        # self.bg_colors = {0: 'wheat1', 1: "wheat2", 2: "wheat3", 3: "wheat4", 4: "wheat4"}
+        # self.bg_colors = {0: "#daeddf", 1: "#9ae3ae", 2: "#17e650", 3: "#149938", 4: "#149938"}
+        # self.bg_colors = {0: "plum1", 1: "orchid1", 2: "MediumOrchid1", 3: "DarkOrchid1", 4: "purple1"}
+        # self.bg_colors = {0: "LightBlue1", 1: "sky blue", 2: "royal blue", 3: "blue", 4: "blue"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "LightYellow2", 2: "LightYellow3", 3: "LightYellow4", 4: "LightYellow4"}
+        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "orange2", 2: "orange3", 3: "orange4", 4: "orange4"}
+        # self.bg_colors = {0: 'khaki1', 1: "khaki2", 2: "khaki3", 3: "khaki4", 4: "khaki4"}
         self.bg_colors = {0: 'DarkOliveGreen1', 1: "wheat1", 2: "wheat3", 3: "wheat4", 4: "wheat4"}
-        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "DodgerBlue1", 2: "DodgerBlue2", 3: "DodgerBlue3", 4: "DodgerBlue4"}
-        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "RoyalBlue1", 2: "RoyalBlue2", 3: "RoyalBlue3", 4: "RoyalBlue4"}
-        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "AntiqueWhite1", 2: "AntiqueWhite2", 3: "AntiqueWhite3", 4: "AntiqueWhite4"}
-        # self.bg_colors = {0: 'DarkOliveGreen1', 1: "AntiqueWhite1", 2: "AntiqueWhite2", 3: "AntiqueWhite3", 4: "AntiqueWhite4"}
+
+
         if self.gui:
             self.init_gui()
 
@@ -171,7 +176,6 @@ class GameBoard(GameBoardBase):
 
     def play(self):
         if self.print_simulation:
-            print('play')
             self.render()
 
         # Initialize locations
@@ -378,9 +382,9 @@ class GameBoard(GameBoardBase):
         )
 
         if self.gui:
-            self.label["text"] = "team %d won" % (self.info['winner_team'] + 1)\
+            self.label["text"] = "Team %d won" % (self.info['winner_team'] + 1)\
                 if 'winner_team' in self.info \
-                else "turn: %d" % (self.turn + 1)
+                else "Turn: %d" % (self.turn + 1)
             for x in range(5):
                 for y in range(5):
                     if self.buildings[x][y] == 4:
@@ -430,7 +434,7 @@ class GameBoard(GameBoardBase):
         self.window = tk.Tk()
         self.window.title("Santorini")
 
-        reset_button = Button(text="restart", font=('consolas', 20), command=self.new_game)
+        reset_button = Button(text="Restart", font=('consolas', 20), command=self.new_game)
         reset_button.pack(side="top")
 
         frame = tk.Frame(self.window)
