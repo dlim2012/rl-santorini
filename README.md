@@ -3,6 +3,12 @@ This project applies Reinforcement algorithms to the board game Santorini withou
 The training uses PPO, A2C, and TRPO algorithms with the self-play technique and optional random or minimax agents.
 Graphical User Interface and multi-player mode are available.
 
+<!-- 
+### User Interface: -->
+<p align="center">
+  <img src="gui.png" width="400" title="hover text">
+</p>
+
 ## Install with python 3.10
 
 ```bash
@@ -40,16 +46,11 @@ python play.py -p2 human
 # 2 players mode: 1 vs 1
 python play.py -p1 rl -p2 minimax3
 # 3 players mode: 1 vs 1 vs 1
-python play.py -p1 minimax3 -p2 minimax3 -p3 minimax3
+python play.py -p1 rl -p2 minimax3 -p3 minimax3
 # 4 players mode: 2 vs 2
-python play.py -p1 minimax3 -p2 minimax3 -p3 minimax3 -p4 minimax3
+python play.py -p1 rl -p2 rl -p3 minimax3 -p4 minimax3
 ```
 
-
-### User Interface:
-<p align="center">
-  <img src="gui.png" width="400" title="hover text">
-</p>
 
 ## References
 
